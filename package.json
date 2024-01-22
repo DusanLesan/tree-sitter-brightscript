@@ -1,0 +1,42 @@
+{
+	"name": "tree-sitter-brightscript",
+	"version": "0.0.1",
+	"description": "Brightscript grammar for node-tree-sitter",
+	"main": "bindings/node",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/DusanLesan/tree-sitter-brightscript"
+	},
+	"keywords": [
+		"tree-sitter",
+		"parser"
+	],
+	"scripts": {
+		"build": "tree-sitter generate",
+		"parse": "tree-sitter parse",
+		"highlight": "tree-sitter highlight"
+	},
+	"author": "Dusan Lesan",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/DusanLesan/tree-sitter-brightscript/issues"
+	},
+	"homepage": "https://github.com/DusanLesan/tree-sitter-brightscript#readme",
+	"dependencies": {
+		"nan": "^2.18.0"
+	},
+	"devDependencies": {
+		"tree-sitter-cli": "^0.20.8"
+	},
+	"tree-sitter": [
+		{
+			"scope": "source.brs",
+			"file-types": [
+				"brs"
+			],
+			"highlights": [
+				"queries/highlights.scm"
+			]
+		}
+	]
+}
