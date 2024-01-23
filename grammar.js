@@ -1,90 +1,199 @@
+const PREC = {
+	ASSIGN: 1,
+	OR: 2,
+	AND: 3,
+	EQUALITY: 4,
+	REL: 5,
+	ADD: 6,
+	MULT: 7
+};
+
 module.exports = grammar({
 	name: 'brightscript',
 
 	rules: {
-		source_file: $ => repeat($._statement),
+		source_file: $ => repeat($._toplevel_statement),
 
-		_statement: $ => choice(
-			$.sub_declaration,
-			$.function_declaration,
-			$.assignment_statement,
+		_toplevel_statement: $ => choice(
+			$._statement,
+			$.method_declaration,
 			$.comment,
 		),
 
-		sub_declaration: $ => seq(
-			'sub',
-			$.identifier,
-			$.parameter_list,
+		statements: $ => repeat1($._statement),
+
+		_statement: $ => choice(
+			$.if_statement,
+			$.for_statement,
+			$.assignment_expression,
+			// $.keywords,
+			$.constant_invalid,
+			$.if_statement,
+			$.for_statement,
+			$.asoc_array,
+			$.return_statement,
+			$.exit_statement
+		),
+
+		function_specifier: $ => choice('sub', 'function'),
+		function_end: $ => choice('end sub', 'end function'),
+
+		method_declaration: $ => 
+			seq(
+			$.function_specifier,
+			field('name', $.identifier),
+			optional($.parameter_list),
+			optional(seq('as', $.type_specifier)),
+			$.block,
+			$.function_end
+		),
+
+		block: $ => seq(
+			/\n/,
 			optional($.statements),
-			'end',
-			'sub'
 		),
 
-		function_declaration: $ => seq(
-			'function',
-			$.identifier,
-			$.parameter_list,
-			optional($.as_clause),
-			optional($.statements),
-			'end',
-			'function'
-		),
-
-		parameter_list: $ => seq(
-			'(',
-			optional(commaSep($.parameter)),
-			')'
-		),
-
+		parameter_list: $ => seq('(', optional(commaSep($.parameter)), ')'),
 		parameter: $ => seq(
-			field('parameterName', $.identifier),
+			field('parameterName', $.expression),
 			optional(seq('as', $.type_specifier))
 		),
 
-		as_clause: $ => seq('as', $.type_specifier),
+		field_access: $ => seq(field('object', $.expression), '.', field('field', $.identifier)),
+		array_access: $ => seq(field('array', $.expression), '[',field('index', $.expression),']'),
 
-		type_specifier: $ => choice('integer', 'boolean', 'string', 'dynamic'),
+		assignment_expression: $ => prec.right(PREC.ASSIGN, seq(
+			field('left', choice(
+				$.identifier,
+				$.field_access,
+				$.array_access
+			)),
+			field('operator', choice('=', '+=', '-=', '*=', '/=', ':')),
+			field('right', $.expression),
+			optional(',')
+		)),
 
-		assignment_statement: $ => seq(
-			optional('var'),
-			$.identifier,
-			'=',
-			$._expression
+		method_invocation: $ => seq(
+			choice(
+				field('name', $.identifier),
+				seq(
+					field('object', $.expression),
+					'.',
+					field('name', $.identifier),
+				)
+			),
+			field('arguments', $.parameter_list)
 		),
 
-		_expression: $ => choice(
+		type_specifier: $ => choice(
+			'boolean',
+			'bool',
+			'integer',
+			'longInteger',
+			'long',
+			'float',
+			'double',
+			'string',
+			'object',
+			'interface',
+			'dynamic'
+		),
+
+		if_statement: $ => seq(
+			'if',
+			$.expression,
+			optional(seq('then', $.statements)),
+			repeat($.else_if_clause),
+			optional(seq('else', $.statements)),
+			'end',
+			'if'
+		),
+
+		else_if_clause: $ => seq(
+			'else if',
+			$.expression,
+			optional(seq('then', $.statements))
+		),
+
+		for_statement: $ => choice(
+			seq(
+				'for',
+				$.identifier,
+				'=',
+				$.expression,
+				'to',
+				$.expression,
+				optional(seq('step', $.expression)),
+				$.statements,
+				'end for'
+			),
+			seq(
+				'for each',
+				$.identifier,
+				'in',
+				$.expression,
+				$.statements,
+				'end for'
+			)
+		),
+
+		assignment_statement: $ => seq(
+			$.identifier,
+			'=',
+			$.expression
+		),
+
+		return_statement: $ => prec.left(1, seq('return', optional($.expression))),
+		exit_statement: $ => prec.left(1, seq('exit', optional($.identifier))),
+
+		expression: $ => choice(
 			$.string_literal,
 			$.number_literal,
 			$.boolean_literal,
+			$.binary_expression,
 			$.identifier,
-			$.binary_operation,
+			$.field_access,
+			$.method_invocation,
 		),
 
+		number_literal: $ => /-?\d+(\.\d+)?/,
+
+		boolean_literal: $ => choice('true', 'false'),
+
+		asoc_array: $ => seq('{', optional($.statements), '}'),
+
+		constant_invalid: $ => /invalid/i,
+
+		identifier: $ => /[\p{L}_$][\p{L}\p{Nd}\u00A2_$]*/,
+
+		binary_expression: $ => choice(
+			...[
+				['>', PREC.REL],
+				['<', PREC.REL],
+				['>=', PREC.REL],
+				['<=', PREC.REL],
+				['=', PREC.EQUALITY],
+				['<>', PREC.EQUALITY],
+				['and', PREC.AND],
+				['or', PREC.OR],
+				['+', PREC.ADD],
+				['-', PREC.ADD],
+				['*', PREC.MULT],
+				['/', PREC.MULT],
+				['mod', PREC.MULT]
+			].map(([operator, precedence]) =>
+				prec.left(precedence, seq(
+					field('left', $.expression),
+					field('operator', operator),
+					field('right', $.expression)
+				))
+			)),
+
+		// keywords: $ => choice('if', 'then', 'else', 'for', 'while', 'each', 'in', 'to', 'step', 'exit', 'next', 'return', 'end'),
+
+		comment: $ => /'.*/,
 		string_literal: $ => /"[^"]*"/,
-
-	number_literal: $ => /\d+(\.\d+)?/,
-
-	boolean_literal: $ => choice('true', 'false'),
-
-	identifier: $ => /[a-zA-Z_]\w*/,
-
-	binary_operation: $ => prec.left(1, seq(
-		field('left', $._expression),
-		field('operator', choice('+', '-', '*', '/')),
-		field('right', $._expression),
-	)),
-
-	comment: $ => choice(
-		$.single_quote_comment,
-		$.rem_comment,
-	),
-
-	single_quote_comment: $ => /'.*/,
-
-	rem_comment: $ => /rem.*/,
-
-	statements: $ => repeat1($._statement),
-},
+	}
 });
 
 function commaSep(rule) {

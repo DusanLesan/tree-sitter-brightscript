@@ -1,12 +1,33 @@
-"function" @keyword
-"sub" @keyword.control
-"end" @keyword
-"as" @keyword
+[
+	"as"
+	"if"
+	"then"
+	"else"
+	"for"
+	"in"
+	"to"
+	"step"
+	"exit"
+	"return"
+	"end"
+] @keyword
 
-(function_declaration
-	(identifier) @entity.name.function
-)
+(identifier) @variable.parameter
 
-(type_specifier) @type
+(function_specifier) @type
+(method_declaration
+	name: (identifier) @function.method)
+(function_end) @type
+
+(method_invocation
+	name: (identifier) @function.method)
 parameterName: (identifier) @variable.parameter
+(type_specifier) @type
+(type_specifier) @type
+
 (comment) @comment
+(number_literal) @number
+(string_literal) @string
+
+;(keywords) @keyword
+(constant_invalid) @constant

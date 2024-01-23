@@ -7,11 +7,32 @@ sub init()
 end sub
 
 ' comment with end keyword in it
-sub setter(index as integer)
-	m.grid.focusIndex = index
+sub setFocusIndex(index as integer)
+	if m.grid.content.count() <= index
+		m.grid.focusIndex = index
+	end if
 end sub
 
-' boolean return type function
-function isFirstItemFocused() as boolean
-	return m.grid.focusIndex = 0
+' object return type function
+function getItemById(itemId as string, categoryId as string) as object
+	if m.grid.content <> invalid and m.grid.content.count() > 0 then
+		for each category in m.grid.content.getChildren(-1, 0)
+			if category.id = categoryId then
+				for i = 0 to category.count() - 1
+					item = category[i]
+					if item.id = itemId or item._id = itemId then
+						return {
+							id: item.id,
+							index: i,
+							poster: item.uri
+						}
+					end if
+				end for
+			else if category.index > 100
+				exit for
+			end if
+		end for
+	end if
+
+	return invalid
 end function
