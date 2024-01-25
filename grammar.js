@@ -1,4 +1,5 @@
 const PREC = {
+	COMMENT: 0,
 	ASSIGN: 1,
 	OR: 2,
 	AND: 3,
@@ -25,21 +26,38 @@ module.exports = grammar({
 		_statement: $ => choice(
 			$.if_statement,
 			$.for_statement,
-			$.assignment_expression,
 			// $.keywords,
 			$.constant_invalid,
 			$.if_statement,
 			$.for_statement,
 			$.asoc_array,
 			$.return_statement,
-			$.exit_statement
+			$.exit_statement,
+			$.expression_statement,
+		),
+
+		expression_statement: $ => seq($.expression, /\n/),
+
+		expression: $ => choice(
+			$.string_literal,
+			$.number_literal,
+			$.boolean_literal,
+			$.assignment_expression,
+			$.binary_expression,
+			$.primary_expression
+		),
+
+		primary_expression: $ => choice(
+			$.identifier,
+			$.field_access,
+			$.array_access,
+			$.method_invocation
 		),
 
 		function_specifier: $ => choice('sub', 'function'),
 		function_end: $ => choice('end sub', 'end function'),
 
-		method_declaration: $ => 
-			seq(
+		method_declaration: $ => seq(
 			$.function_specifier,
 			field('name', $.identifier),
 			optional($.parameter_list),
@@ -48,10 +66,7 @@ module.exports = grammar({
 			$.function_end
 		),
 
-		block: $ => seq(
-			/\n/,
-			optional($.statements),
-		),
+		block: $ => seq(/\n/, repeat($._statement)),
 
 		parameter_list: $ => seq('(', optional(commaSep($.parameter)), ')'),
 		parameter: $ => seq(
@@ -69,8 +84,7 @@ module.exports = grammar({
 				$.array_access
 			)),
 			field('operator', choice('=', '+=', '-=', '*=', '/=', ':')),
-			field('right', $.expression),
-			optional(',')
+			field('right', $.expression)
 		)),
 
 		method_invocation: $ => seq(
@@ -101,8 +115,9 @@ module.exports = grammar({
 
 		if_statement: $ => seq(
 			'if',
-			$.expression,
-			optional(seq('then', $.statements)),
+			$.expression_statement,
+			optional(field('then','then')),
+			$.statements,
 			repeat($.else_if_clause),
 			optional(seq('else', $.statements)),
 			'end',
@@ -110,57 +125,37 @@ module.exports = grammar({
 		),
 
 		else_if_clause: $ => seq(
-			'else if',
-			$.expression,
+			'else if', $.expression,
 			optional(seq('then', $.statements))
 		),
 
 		for_statement: $ => choice(
 			seq(
-				'for',
-				$.identifier,
-				'=',
-				$.expression,
-				'to',
-				$.expression,
-				optional(seq('step', $.expression)),
-				$.statements,
-				'end for'
+				'for', $.identifier,'=', $.expression, 'to',
+				$.expression, optional(seq('step', $.expression)), $.statements,
+				'end', 'for'
 			),
 			seq(
-				'for each',
-				$.identifier,
-				'in',
-				$.expression,
-				$.statements,
-				'end for'
+				'for', 'each', $.identifier, 'in',
+				$.expression, $.statements,
+				'end', 'for'
 			)
 		),
 
 		assignment_statement: $ => seq(
 			$.identifier,
 			'=',
-			$.expression
+			$.expression_statement
 		),
 
 		return_statement: $ => prec.left(1, seq('return', optional($.expression))),
 		exit_statement: $ => prec.left(1, seq('exit', optional($.identifier))),
 
-		expression: $ => choice(
-			$.string_literal,
-			$.number_literal,
-			$.boolean_literal,
-			$.binary_expression,
-			$.identifier,
-			$.field_access,
-			$.method_invocation,
-		),
-
 		number_literal: $ => /-?\d+(\.\d+)?/,
 
 		boolean_literal: $ => choice('true', 'false'),
 
-		asoc_array: $ => seq('{', optional($.statements), '}'),
+		asoc_array: $ => seq('{', repeat(seq($.expression_statement, optional(','))), '}'),
 
 		constant_invalid: $ => /invalid/i,
 
@@ -191,7 +186,7 @@ module.exports = grammar({
 
 		// keywords: $ => choice('if', 'then', 'else', 'for', 'while', 'each', 'in', 'to', 'step', 'exit', 'next', 'return', 'end'),
 
-		comment: $ => /'.*/,
+		comment: $ => token(prec.left(PREC.COMMENT, /'.*\n/)),
 		string_literal: $ => /"[^"]*"/,
 	}
 });

@@ -3,6 +3,7 @@
 	"if"
 	"then"
 	"else"
+	"else if"
 	"for"
 	"in"
 	"to"
