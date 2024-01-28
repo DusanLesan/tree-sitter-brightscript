@@ -5,30 +5,35 @@
 	"else"
 	"else if"
 	"for"
+	"for each"
 	"in"
 	"to"
-	"step"
 	"exit"
 	"return"
 	"end"
 ] @keyword
 
+[
+	"sub"
+	"function"
+	"end sub"
+	"end function"
+] @type
+
 (identifier) @variable.parameter
 
-(function_specifier) @type
-(method_declaration
-	name: (identifier) @function.method)
-(function_end) @type
+(function_declaration
+	 name: (identifier) @function.method)
 
-(method_invocation
-	name: (identifier) @function.method)
-parameterName: (identifier) @variable.parameter
-(type_specifier) @type
-(type_specifier) @type
+(function_call
+	name: [
+		(identifier) @function.call
+		(dot_index_expression
+			field: (identifier) @function.call)
+	])
 
 (comment) @comment
-(number_literal) @number
-(string_literal) @string
-
-;(keywords) @keyword
-(constant_invalid) @constant
+(number) @number
+(string) @string
+(type) @type
+(invalid) @type

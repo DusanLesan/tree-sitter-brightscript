@@ -1,105 +1,63 @@
 const PREC = {
-	COMMENT: 0,
-	ASSIGN: 1,
-	OR: 2,
-	AND: 3,
-	EQUALITY: 4,
-	REL: 5,
-	ADD: 6,
-	MULT: 7
+	OR: 1,
+	AND: 2,
+	COMP: 3,
+	ADD: 9,
+	MULT: 10,
+	UNARY: 11,
 };
+
+const WHITESPACE = /\s/;
+const DECIMAL_DIGIT = /[0-9]/;
+const HEXADECIMAL_DIGIT = /[0-9a-fA-F]/;
+
+const _numeral = (digit) => choice(
+	repeat1(digit),
+	seq(repeat1(digit), '.', repeat(digit)),
+	seq(repeat(digit), '.', repeat1(digit)),
+);
+
+const _list = (rule, separator) => seq(rule, repeat(seq(separator, rule)));
 
 module.exports = grammar({
 	name: 'brightscript',
 
 	rules: {
-		source_file: $ => repeat($._toplevel_statement),
+		source_file: $ => $._block,
 
-		_toplevel_statement: $ => choice(
-			$._statement,
-			$.method_declaration,
-			$.comment,
+		_block: $ => choice(
+			seq(repeat1($.statement), optional($.return_statement)),
+			seq(repeat($.statement), $.return_statement)
 		),
 
-		statements: $ => repeat1($._statement),
-
-		_statement: $ => choice(
-			$.if_statement,
-			$.for_statement,
-			// $.keywords,
-			$.constant_invalid,
-			$.if_statement,
-			$.for_statement,
-			$.asoc_array,
-			$.return_statement,
+		statement: $ => choice(
+			$.assignment_statement,
+			$.function_call,
+			$.goto_statement,
 			$.exit_statement,
-			$.expression_statement,
+			$.do_statement,
+			$.while_statement,
+			$.if_statement,
+			$.for_numeric_statement,
+			$.for_each_statement,
+			$.function_declaration,
 		),
 
-		expression_statement: $ => seq($.expression, /\n/),
-
-		expression: $ => choice(
-			$.string_literal,
-			$.number_literal,
-			$.boolean_literal,
-			$.assignment_expression,
-			$.binary_expression,
-			$.primary_expression
+		function_declaration: $ => seq(
+			choice('sub', 'function'),
+			field( 'name', $.identifier),
+			'(', optional(field('parameters', optional(commaSep($.parameter)))), ')',
+			optional(seq('as', $.type)),
+			optional(field('body', $._block)),
+			choice('end sub', 'end function')
 		),
 
-		primary_expression: $ => choice(
-			$.identifier,
-			$.field_access,
-			$.array_access,
-			$.method_invocation
-		),
-
-		function_specifier: $ => choice('sub', 'function'),
-		function_end: $ => choice('end sub', 'end function'),
-
-		method_declaration: $ => seq(
-			$.function_specifier,
-			field('name', $.identifier),
-			optional($.parameter_list),
-			optional(seq('as', $.type_specifier)),
-			$.block,
-			$.function_end
-		),
-
-		block: $ => seq(/\n/, repeat($._statement)),
-
-		parameter_list: $ => seq('(', optional(commaSep($.parameter)), ')'),
 		parameter: $ => seq(
 			field('parameterName', $.expression),
-			optional(seq('as', $.type_specifier))
+			optional(seq('as', $.type))
 		),
 
-		field_access: $ => seq(field('object', $.expression), '.', field('field', $.identifier)),
-		array_access: $ => seq(field('array', $.expression), '[',field('index', $.expression),']'),
-
-		assignment_expression: $ => prec.right(PREC.ASSIGN, seq(
-			field('left', choice(
-				$.identifier,
-				$.field_access,
-				$.array_access
-			)),
-			field('operator', choice('=', '+=', '-=', '*=', '/=', ':')),
-			field('right', $.expression)
-		)),
-
-		method_invocation: $ => seq(
-			choice(
-				field('name', $.identifier),
-				seq(
-					field('object', $.expression),
-					'.',
-					field('name', $.identifier),
-				)
-			),
-			field('arguments', $.parameter_list)
-		),
-
-		type_specifier: $ => choice(
+		type: $ => choice(
 			'boolean',
 			'bool',
 			'integer',
@@ -113,82 +71,184 @@ module.exports = grammar({
 			'dynamic'
 		),
 
+		assignment_statement: $ => seq(
+			$.variable,
+			'=',
+			$.expression_list
+		),
+
+		function_call: $ => seq(
+			field('name', choice(
+				$._prefix_expression,
+				alias($._table_method_variable, $.variable),
+			)),
+			field('arguments', $.argument_list),
+		),
+
+		_table_method_variable: $ => seq(field('table', $.prefix_expression), $._method_identifier),
+		_method_identifier: $ => seq(':', field('method', $.identifier)),
+
+		argument_list: $ => choice(
+			seq(
+				'(',
+				optional($.expression_list),
+				')'
+			),
+			$.associative_array,
+			$.string
+		),
+
+		for_each_statement: $ => seq(
+			'for each',
+			field('left', $.identifier),
+			'in',
+			field('right', $.expression),
+			optional(field('body', $._block)),
+			'end', 'for',
+		),
+
+		for_numeric_statement: $ => seq(
+			'for',
+			field('name', $.identifier),
+			'=',
+			field('start', $.expression),
+			'to',
+			field('end', $.expression),
+			optional(seq(',', field('step', $.expression))),
+			optional(field('body', $._block)),
+			'end', 'for',
+		),
+
 		if_statement: $ => seq(
 			'if',
-			$.expression_statement,
-			optional(field('then','then')),
-			$.statements,
-			repeat($.else_if_clause),
-			optional(seq('else', $.statements)),
-			'end',
-			'if'
+			field('condition', $.expression),
+			optional('then'),
+			optional(field('consequence', $._block)),
+			repeat(field('alternative', $.else_if_statement)),
+			optional(field('alternative', $.else_statement)),
+			'end', 'if'
+		),
+		else_if_statement: $ => seq(
+			'else if',
+			field('condition', $.expression),
+			optional('then'),
+			optional(field('consequence', $._block))
+		),
+		else_statement: $ => seq(
+			'else',
+			optional(field('consequence', $._block))
 		),
 
-		else_if_clause: $ => seq(
-			'else if', $.expression,
-			optional(seq('then', $.statements))
+		while_statement: $ => seq(
+			'while',
+			field('condition', $.expression),
+			'do',
+			optional(field('body', $._block)),
+			'end', 'while',
 		),
 
-		for_statement: $ => choice(
-			seq(
-				'for', $.identifier,'=', $.expression, 'to',
-				$.expression, optional(seq('step', $.expression)), $.statements,
-				'end', 'for'
-			),
-			seq(
-				'for', 'each', $.identifier, 'in',
-				$.expression, $.statements,
-				'end', 'for'
-			)
+		do_statement: $ => seq('do', optional(field('body', $._block)), 'end'),
+		exit_statement: () => seq('exit', choice('for','while')),
+		goto_statement: $ => seq('goto', field('name', $.identifier)),
+		return_statement: $ => prec.left(1, seq('return', optional($.expression_list))),
+
+		expression: $ => choice(
+			$.invalid,
+			$.false,
+			$.true,
+			$.number,
+			$.string,
+			$.variable,
+			$.prefix_expression,
+			$.associative_array,
+			$.unary_expression,
+			$.binary_expression,
 		),
 
-		assignment_statement: $ => seq(
-			$.identifier,
-			'=',
-			$.expression_statement
+		expression_list: $ => _list($.expression, ','),
+		prefix_expression: $ => choice($.variable, $.function_call, $.parenthesized_expression),
+		_prefix_expression: $ => prec(1, $.prefix_expression),
+
+		variable: $ => choice($.identifier, $.bracket_index_expression, $.dot_index_expression),
+
+		bracket_index_expression: $ => seq(
+			field('table', $._prefix_expression),
+			'[',
+			field('field', $.expression),
+			']'
 		),
 
-		return_statement: $ => prec.left(1, seq('return', optional($.expression))),
-		exit_statement: $ => prec.left(1, seq('exit', optional($.identifier))),
-
-		number_literal: $ => /-?\d+(\.\d+)?/,
-
-		boolean_literal: $ => choice('true', 'false'),
-
-		asoc_array: $ => seq('{', repeat(seq($.expression_statement, optional(','))), '}'),
-
-		constant_invalid: $ => /invalid/i,
-
-		identifier: $ => /[\p{L}_$][\p{L}\p{Nd}\u00A2_$]*/,
+		dot_index_expression: $ => seq(
+			field('table', $._prefix_expression),
+			choice('.', field('optional_chain', $.optional_chain)),
+			field('field', $.identifier)
+		),
 
 		binary_expression: $ => choice(
 			...[
-				['>', PREC.REL],
-				['<', PREC.REL],
-				['>=', PREC.REL],
-				['<=', PREC.REL],
-				['=', PREC.EQUALITY],
-				['<>', PREC.EQUALITY],
-				['and', PREC.AND],
 				['or', PREC.OR],
+				['and', PREC.AND],
+				['=', PREC.COMP],
+				['<>', PREC.COMP],
+				['<', PREC.COMP],
+				['>', PREC.COMP],
+				['<=', PREC.COMP],
+				['>=', PREC.COMP],
 				['+', PREC.ADD],
 				['-', PREC.ADD],
 				['*', PREC.MULT],
 				['/', PREC.MULT],
-				['mod', PREC.MULT]
-			].map(([operator, precedence]) =>
-				prec.left(precedence, seq(
+				['mod', PREC.MULT],
+			].map(([operator, priority]) => prec.left(priority,
+				seq(
 					field('left', $.expression),
 					field('operator', operator),
-					field('right', $.expression)
-				))
+					field('right', $.expression),
+				),
 			)),
+		),
 
-		// keywords: $ => choice('if', 'then', 'else', 'for', 'while', 'each', 'in', 'to', 'step', 'exit', 'next', 'return', 'end'),
+		unary_expression: $ => choice(
+			...['not', '#', '-', '~'].map((operator) =>
+				prec.left(
+					PREC.UNARY,
+					seq(field('operator', operator), field('argument', $.expression)),
+				),
+			),
+		),
 
-		comment: $ => token(prec.left(PREC.COMMENT, /'.*\n/)),
-		string_literal: $ => /"[^"]*"/,
-	}
+		associative_array: $ => seq('{', optional($.field_list), '}'),
+		field_list: $ => seq(_list($.field, $.field_separator), optional($.field_separator)),
+		field: $ => seq(field('value', $.expression)),
+		field_separator: () => ',',
+		optional_chain: _ => '?.',
+
+		parenthesized_expression: $ => seq('(', $.expression, ')'),
+
+		number: $ => token(seq(
+			optional('-'),
+			_numeral(DECIMAL_DIGIT)
+		)),
+
+		identifier: (_) => {
+			const identifier_start =
+				/[^\p{Control}\s+\-*/%^#&~|<>=(){}\[\];:,.?\\'"\d]/;
+			const identifier_continue =
+				/[^\p{Control}\s+\-*/%^#&~|<>=(){}\[\];:,.?\\'"]*/;
+			return token(seq(identifier_start, identifier_continue));
+		},
+
+		true: () => 'true',
+		false: () => 'false',
+		invalid: () => 'invalid',
+		comment: $ => seq("'", optional(/.*/), /\n/),
+		string: $ => /"[^"]*"/,
+	},
+
+	extras: $ => [WHITESPACE, $.comment],
+	inline: $ => [$.prefix_expression, $.field_separator],
+	supertypes: $ => [$.statement, $.expression, $.variable],
+	word: $ => $.identifier,
 });
 
 function commaSep(rule) {
