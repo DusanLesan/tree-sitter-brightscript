@@ -38,8 +38,8 @@ module.exports = grammar({
 			$.do_statement,
 			$.while_statement,
 			$.if_statement,
-			$.for_numeric_statement,
-			$.for_each_statement,
+			$.inline_if_statement,
+			$.for_statement,
 			$.function_declaration,
 		),
 
@@ -98,31 +98,39 @@ module.exports = grammar({
 			$.string
 		),
 
-		for_each_statement: $ => seq(
-			'for each',
+		for_statement: $ => seq(
+			'for',
+			field('clause', choice($.for_each_clause, $.for_numeric_clause)),
+			optional(field('body', $._block)),
+			'end', 'for'
+		),
+		for_each_clause: $ => seq(
+			'each',
 			field('left', $.identifier),
 			'in',
 			field('right', $.expression),
-			optional(field('body', $._block)),
-			'end', 'for',
 		),
-
-		for_numeric_statement: $ => seq(
-			'for',
+		for_numeric_clause: $ => seq(
 			field('name', $.identifier),
 			'=',
 			field('start', $.expression),
 			'to',
 			field('end', $.expression),
-			optional(seq(',', field('step', $.expression))),
-			optional(field('body', $._block)),
-			'end', 'for',
+			optional(seq('step', field('step', $.expression)))
+		),
+
+		inline_if_statement: $ => seq(
+			'if',
+			field('condition', $.expression),
+			'then',
+			field('consequence', $.expression),
 		),
 
 		if_statement: $ => seq(
 			'if',
 			field('condition', $.expression),
 			optional('then'),
+			/\n/,
 			optional(field('consequence', $._block)),
 			repeat(field('alternative', $.else_if_statement)),
 			optional(field('alternative', $.else_statement)),

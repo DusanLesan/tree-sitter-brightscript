@@ -9,6 +9,7 @@ end sub
 ' comment with end keyword in it
 sub setFocusIndex(index as integer)
 	if m.grid.content.count() <= index
+		if index < 0 then index = 0
 		m.grid.focusIndex = index
 	end if
 end sub

@@ -84,11 +84,11 @@
         },
         {
           "type": "SYMBOL",
-          "name": "for_numeric_statement"
+          "name": "inline_if_statement"
         },
         {
           "type": "SYMBOL",
-          "name": "for_each_statement"
+          "name": "for_statement"
         },
         {
           "type": "SYMBOL",
@@ -440,31 +440,28 @@
         }
       ]
     },
-    "for_each_statement": {
+    "for_statement": {
       "type": "SEQ",
       "members": [
         {
           "type": "STRING",
-          "value": "for each"
+          "value": "for"
         },
         {
           "type": "FIELD",
-          "name": "left",
+          "name": "clause",
           "content": {
-            "type": "SYMBOL",
-            "name": "identifier"
-          }
-        },
-        {
-          "type": "STRING",
-          "value": "in"
-        },
-        {
-          "type": "FIELD",
-          "name": "right",
-          "content": {
-            "type": "SYMBOL",
-            "name": "expression"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "for_each_clause"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "for_numeric_clause"
+              }
+            ]
           }
         },
         {
@@ -493,13 +490,38 @@
         }
       ]
     },
-    "for_numeric_statement": {
+    "for_each_clause": {
       "type": "SEQ",
       "members": [
         {
           "type": "STRING",
-          "value": "for"
+          "value": "each"
         },
+        {
+          "type": "FIELD",
+          "name": "left",
+          "content": {
+            "type": "SYMBOL",
+            "name": "identifier"
+          }
+        },
+        {
+          "type": "STRING",
+          "value": "in"
+        },
+        {
+          "type": "FIELD",
+          "name": "right",
+          "content": {
+            "type": "SYMBOL",
+            "name": "expression"
+          }
+        }
+      ]
+    },
+    "for_numeric_clause": {
+      "type": "SEQ",
+      "members": [
         {
           "type": "FIELD",
           "name": "name",
@@ -540,7 +562,7 @@
               "members": [
                 {
                   "type": "STRING",
-                  "value": ","
+                  "value": "step"
                 },
                 {
                   "type": "FIELD",
@@ -556,30 +578,35 @@
               "type": "BLANK"
             }
           ]
+        }
+      ]
+    },
+    "inline_if_statement": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "if"
         },
         {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "FIELD",
-              "name": "body",
-              "content": {
-                "type": "SYMBOL",
-                "name": "_block"
-              }
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
+          "type": "FIELD",
+          "name": "condition",
+          "content": {
+            "type": "SYMBOL",
+            "name": "expression"
+          }
         },
         {
           "type": "STRING",
-          "value": "end"
+          "value": "then"
         },
         {
-          "type": "STRING",
-          "value": "for"
+          "type": "FIELD",
+          "name": "consequence",
+          "content": {
+            "type": "SYMBOL",
+            "name": "expression"
+          }
         }
       ]
     },
@@ -609,6 +636,10 @@
               "type": "BLANK"
             }
           ]
+        },
+        {
+          "type": "PATTERN",
+          "value": "\\n"
         },
         {
           "type": "CHOICE",
