@@ -9,7 +9,6 @@ const PREC = {
 
 const WHITESPACE = /\s/;
 const DECIMAL_DIGIT = /[0-9]/;
-const HEXADECIMAL_DIGIT = /[0-9a-fA-F]/;
 
 const _numeral = (digit) => choice(
 	repeat1(digit),
@@ -20,7 +19,7 @@ const _numeral = (digit) => choice(
 const _list = (rule, separator) => seq(rule, repeat(seq(separator, rule)));
 
 module.exports = grammar({
-	name: 'brightscript',
+	name: 'brs',
 
 	rules: {
 		source_file: $ => $._block,
@@ -40,6 +39,7 @@ module.exports = grammar({
 			$.if_statement,
 			$.inline_if_statement,
 			$.for_statement,
+			$.try_statement,
 			$.function_declaration,
 		),
 
@@ -155,8 +155,21 @@ module.exports = grammar({
 			'end', 'while',
 		),
 
+		try_statement: $ => seq(
+			'try',
+			/\n/,
+			optional(field('block', $._block)),
+			optional(field('catch', $.catch_clause)),
+			'end try'
+		),
+		catch_clause: $ => seq(
+			'catch',
+			optional($.variable),
+			optional(field('block', $._block)),
+		),
+
 		do_statement: $ => seq('do', optional(field('body', $._block)), 'end'),
-		exit_statement: () => seq('exit', choice('for','while')),
+		exit_statement: () => seq('exit', choice('for', 'while')),
 		goto_statement: $ => seq('goto', field('name', $.identifier)),
 		return_statement: $ => prec.left(1, seq('return', optional($.expression_list))),
 

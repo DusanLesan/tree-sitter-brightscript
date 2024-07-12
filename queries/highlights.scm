@@ -38,3 +38,5 @@
 (string) @string
 (type) @type
 (invalid) @type
+(true) @type
+(false) @type

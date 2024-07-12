@@ -1,8 +1,10 @@
 sub init()
 	logInfo("MainScene :: Init")
 
-	setSceneBackgroundColor() ' inline comment with sub keyword in it
-	var = "string value"
+	setComponentAppearance() ' inline comment with sub keyword in it
+
+	foo = "string value"
+	bar = m.global.theme?.color
 	m.grid = m.top.findNode("contentGrid")
 end sub
 
@@ -12,6 +14,14 @@ sub setFocusIndex(index as integer)
 		if index < 0 then index = 0
 		m.grid.focusIndex = index
 	end if
+end sub
+
+sub tryTest()
+	try
+		'print 1/0
+	catch
+		'? "Division failed: ", e
+	end try
 end sub
 
 ' object return type function
